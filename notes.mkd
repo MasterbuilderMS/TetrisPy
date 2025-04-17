@@ -1,0 +1,15 @@
+TODO:
+ [x] bundle check if can move down into a single method
+ [x] check if it can rotate before rotating it
+ [x] check if it can move sideways
+ [x] move movement checking methods into tetromino
+ [ ] #URGENT. General Code tidy up
+ [ ] #RED Move coordinate system :( :( :( 
+ [ ] check for winning/death
+ [ ] add score
+ [ ] add instant drop key
+ [ ] add store key
+ [ ] add highscore
+ [ ] better ui
+ [ ] add ready,set,go screen
+ [ ] add holding
