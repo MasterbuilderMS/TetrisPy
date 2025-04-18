@@ -1,6 +1,5 @@
+#!/usr/bin/env/python
 """
-tetris.py
-
 A terminal-based Tetris game implemented in Python. This module defines the core game logic, including the game board,
 Tetromino handling, piece movement, rotation, collision detection, line clearing, scoring, and rendering to the terminal.
 
@@ -19,15 +18,16 @@ Dependencies:
 - ANSI-compatible terminal for color display.
 """
 
-__author__ = "Michael"
-__version__ = "1.0.0"
-
 import sys
 import time
 import random
 import os
 import msvcrt
 import winsound
+
+__author__ = "Michael"
+__version__ = "1.0.0"
+
 
 BOARD_X = 10
 BOARD_Y = 20
