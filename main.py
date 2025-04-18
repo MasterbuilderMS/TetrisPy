@@ -1,7 +1,7 @@
 #!/usr/bin/env/python
 """
-A terminal-based Tetris game implemented in Python. This module defines the core game logic, including the game board,
-Tetromino handling, piece movement, rotation, collision detection, line clearing, scoring, and rendering to the terminal.
+A terminal-based Tetris game implemented in Python. 
+
 
 Key Features:
 - Standard Tetris board dimensions (10x20).
@@ -33,37 +33,37 @@ BOARD_X = 10
 BOARD_Y = 20
 FILL_CHAR = "███"
 
-I = [  # Pivot at (1.5, 1.5)
+I = [
     [" ", " ", " ", " "],
     ["███", "███", "███", "███"],
     [" ", " ", " ", " "],
     [" ", " ", " ", " "]
 ]
-O = [  # Pivot between 4 blocks, no rotation effect
+O = [
     ["███", "███"],
     ["███", "███"],
 ]
-T = [  # Pivot at center (1,1)
+T = [
     [" ", "███", " "],
     ["███", "███", "███"],
     [" ", " ", " "]
 ]
-S = [  # Pivot at center (1,1)
+S = [
     [" ", "███", "███"],
     ["███", "███", " "],
     [" ", " ", " "]
 ]
-Z = [  # Pivot at center (1,1)
+Z = [
     ["███", "███", " "],
     [" ", "███", "███"],
     [" ", " ", " "]
 ]
-J = [  # Pivot at center (1,1)
+J = [
     ["███", " ", " "],
     ["███", "███", "███"],
     [" ", " ", " "]
 ]
-L = [  # Pivot at center (1,1)
+L = [
     [" ", " ", "███"],
     ["███", "███", "███"],
     [" ", " ", " "]
@@ -71,7 +71,7 @@ L = [  # Pivot at center (1,1)
 
 
 class Color:
-    " "" ANSI color codes " ""
+    """ ANSI color codes """
     RED = "\033[0;31m"
     GREEN = "\033[38;5;034m"
     BROWN = "\033[0;33m"
@@ -98,14 +98,11 @@ class Color:
     ORANGE = "\033[38;5;208m"
 
 
-def loop(func):
-    def inner(*args, **kwargs):
-        while True:
-            func(*args, **kwargs)
-    return inner
-
-
 class TetriminoBag:
+    """
+    Class that acts as a bag to draw next piece
+    """
+
     def __init__(self):
         self.bag = []
 
