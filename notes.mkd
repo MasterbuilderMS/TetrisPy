@@ -13,3 +13,7 @@ TODO:
  [ ] add highscore
  [ ] better ui
  [ ] add ready,set,go screen
+ [ ] show where shape will land
+ [ ] modularise
+ [ ] better clearing animation
+ [ ] messages (tetris, t-spin, single, etc)

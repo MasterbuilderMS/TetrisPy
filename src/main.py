@@ -28,7 +28,7 @@ import msvcrt
 import winsound
 import copy
 
-__author__ = "Michael"
+__author__ = "Michael Savage"
 __version__ = "1.0.0"
 
 
@@ -73,8 +73,6 @@ L_PIECE = [
 ]
 
 
-
-
 class Color:
     """ ANSI color letters """
     RED = "\033[0;31m"
@@ -104,12 +102,15 @@ class Color:
 
 
 TETRIS = f"""
-{Color.RED}█████████\033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}█████████\033[0m {Color.GREEN}████████ \033[0m {Color.BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
-{Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.BLUE}  ███   \033[0m {Color.PURPLE}███     \033[0m
-{Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}█████    \033[0m {Color.BLUE}  ███   \033[0m {Color.PURPLE}████████\033[0m
-{Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.BLUE}  ███   \033[0m {Color.PURPLE}     ███\033[0m
-{Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
+{Color.RED}█████████\033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}█████████\033[0m {Color.GREEN}████████ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
+{Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}███     \033[0m
+{Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}█████    \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}████████\033[0m
+{Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}     ███\033[0m
+{Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
 """
+
+
+
 
 
 class TetriminoBag:
@@ -126,6 +127,13 @@ class TetriminoBag:
             self.bag = ["I", "O", "T", "S", "Z", "J", "L"]
             random.shuffle(self.bag)
         return self.bag.pop()
+
+    def peek(self):
+        """Get next peice without popping"""
+        if not self.bag:
+            self.bag = ["I", "O", "T", "S", "Z", "J", "L"]
+            random.shuffle(self.bag)
+        return self.bag[-1]
 
 
 class Tetromino:
@@ -276,6 +284,38 @@ class Tetromino:
                     rotated.append((row, col))
         return rotated
 
+def display(func):
+    def inner(*args, **kwargs):
+        print("\033[30A\033[2K", end="")
+        return func(*args, **kwargs)
+    return inner
+
+
+@display
+def game_display(board: list[list], score: int, next_shape: str):
+    top = f"╔════════════════{round(score, 2)}═══════════════════╗\n║                                      ║"
+    board_print = ""
+    tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
+
+    for y, j in enumerate(board):
+        board_print += "\n║  " + str(BOARD_Y-y).ljust(4)
+        for x in j:
+            board_print += ("["+x + "]" if FILL_CHAR not in x else x)
+        board_print += "  ║"
+        if 5 <= y <= 10:
+            if y == 5:
+                board_print += "\t╔═════Next══════╗"
+            elif y == 10:
+                board_print += "\t╚═══════════════╝"
+            else:
+                try:
+                    string = tetromino_str[y-6]  # current row of tetromino
+                    board_print += f"\t║ {string.ljust(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size))}║"
+                except IndexError:
+                    board_print += f"\t║ {(" "*(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size)))}║"
+    # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
+    return TETRIS + "\n" + top + board_print
+
 
 class Tetris:
     def __init__(self):
@@ -292,11 +332,6 @@ class Tetris:
 
     def __setitem__(self, pos: tuple, value: str | int) -> None:
         self.board[pos[0]][pos[1]] = value
-
-    def __str__(self):
-        
-        board = "\n".join(str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
-        return TETRIS + "\n" + board
 
     def update(self, shape: Tetromino):
         """
@@ -353,11 +388,14 @@ class Tetris:
                     original_cells.append((row, col))
         num_of_cells_overlapping_with_self = len(set(original_cells) & set(shape.get_rotated()))
         for i in shape.get_rotated():
+            if shape.x+i[1] < 0 or shape.x+i[1] >= BOARD_X:
+                return False
             if FILL_CHAR in self[shape.y+i[0], shape.x+i[1]]:
                 pass
             else:
 
                 free += 1
+        
         if free == len(shape.get_rotated()) - num_of_cells_overlapping_with_self:
             return True
 
@@ -365,7 +403,7 @@ class Tetris:
         row = BOARD_Y - 1
         while row >= 0:
             if all(FILL_CHAR in self.fixed_board[row][col] for col in range(BOARD_X)):
-                winsound.Beep(10000, 100)
+                winsound.Beep(1000, 100)
 
                 # Animate from center outwards
                 mid = BOARD_X // 2
@@ -416,8 +454,7 @@ class Tetris:
         """ Iterates through all the shapes and updates the board, and then prints it """
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
-        print("\033[27A\033[2K", end="")
-        print(self)
+        print(game_display(self.board, max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10))), self.bag.peek()))
 
     def main(self):
         last_main_update = time.time()
