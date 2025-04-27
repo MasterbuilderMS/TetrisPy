@@ -110,9 +110,6 @@ TETRIS = f"""
 """
 
 
-
-
-
 class TetriminoBag:
     """
     Class that acts as a bag to draw next piece
@@ -284,6 +281,18 @@ class Tetromino:
                     rotated.append((row, col))
         return rotated
 
+    def get_left_rotated(self) -> list[tuple]:
+        rotated = []
+        cells = [list(row) for row in zip(*self.shape[::-1])]
+        cells = [list(row) for row in zip(*cells[::-1])]
+        cells = [list(row) for row in zip(*cells[::-1])]
+        for row in range(self.size):
+            for col in range(self.size):
+                if FILL_CHAR in cells[row][col]:
+                    rotated.append((row, col))
+        return rotated
+
+
 def display(func):
     def inner(*args, **kwargs):
         print("\033[30A\033[2K", end="")
@@ -398,6 +407,26 @@ class Tetris:
         
         if free == len(shape.get_rotated()) - num_of_cells_overlapping_with_self:
             return True
+        
+    def can_rotate_left(self,shape:Tetromino) -> bool:
+        free = 0
+        original_cells = []
+        for row in range(shape.size):
+            for col in range(shape.size):
+                if FILL_CHAR in shape[row, col]:
+                    original_cells.append((row, col))
+        num_of_cells_overlapping_with_self = len(set(original_cells) & set(shape.get_left_rotated()))
+        for i in shape.get_left_rotated():
+            if shape.x+i[1] < 0 or shape.x+i[1] >= BOARD_X:
+                return False
+            if FILL_CHAR in self[shape.y+i[0], shape.x+i[1]]:
+                pass
+            else:
+
+                free += 1
+        
+        if free == len(shape.get_left_rotated()) - num_of_cells_overlapping_with_self:
+            return True
 
     def check_rows(self):
         row = BOARD_Y - 1
@@ -482,6 +511,10 @@ class Tetris:
                     if self.can_move_right(current_shape):
                         current_shape.x += 1
                         self.update_screen()
+                case "Z":
+                    if self.can_rotate_left(current_shape):
+                        current_shape.rotate(270)
+                        self.update_screen()
                 case "QUIT":
                     running = False
             # Run main logic at fixed interval
@@ -508,6 +541,8 @@ class Tetris:
                     return "LEFT"
             elif ch == b"q":
                 return "QUIT"
+            elif ch==b"z":
+                return "Z"
 
 
 if __name__ == "__main__":
