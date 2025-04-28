@@ -74,7 +74,7 @@ L_PIECE = [
 
 
 class Color:
-    """ ANSI color letters """
+    """ ANSI color codes """
     RED = "\033[0;31m"
     GREEN = "\033[38;5;034m"
     BROWN = "\033[0;33m"
@@ -113,6 +113,9 @@ TETRIS = f"""
 class TetriminoBag:
     """
     Class that acts as a bag to draw next piece
+
+    next_piece returns the next piece
+    peek returns the next piece without popping from the bag (used for the "next" counter display )
     """
 
     def __init__(self):
@@ -141,17 +144,21 @@ class Tetromino:
      - shape
      - x
      - y
+     - rotation
     """
 
-    def __init__(self, shape: str, start_x_pos: int, start_rotation: int) -> None:
+    def __init__(self, shape: str, start_x_pos: int, start_rotation: int = 0) -> None:
+        # transform shape code into 2d array
         self.shape = {"I": I_PIECE, "O": O_PIECE, "T": T_PIECE, "S": S_PIECE, "Z": Z_PIECE, "J": J_PIECE, "L": L_PIECE}[shape]
         if shape not in ["I", "O", "T", "S", "Z", "J", "L"]:
             raise ValueError(f"{self.shape} Not a valid shape")
+        # keep the code
         self.shape_letter = shape
         self.x = start_x_pos
         self.y = 0  # top
         self.rotation = start_rotation
         self.rotate(self.rotation)
+        # set shape color
         self.prepare_shape()
 
     def __str__(self) -> str:
@@ -187,7 +194,7 @@ class Tetromino:
 
     @property
     def size(self):
-        """ Size of the shape """
+        """ Size of the shape (height or width) """
         return len(self.shape)
 
     def set_color(self, color: str) -> None:
@@ -299,6 +306,19 @@ def display(func):
         return func(*args, **kwargs)
     return inner
 
+@display
+def game_over_display():
+    os.system("cls")
+    top = f"╔══════════════════════════════════════╗\n"
+    for x in range(20):
+        if x == 10:
+            top += f"║{Color.BOLD}{Color.RED}              GAME OVER               {Color.END}║\n"
+        else:
+            top += "║                                      ║\n"
+    top + "\n║                                      ║\n╚══════════════════════════════════════╝"
+    return TETRIS + "\n" + top
+    
+    
 
 @display
 def game_display(board: list[list], score: int, next_shape: str, lines):
@@ -333,6 +353,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines):
     return TETRIS + "\n" + top + board_print + bottom
 
 
+
 class Tetris:
     def __init__(self):
         self.board: list[list[str]] = [
@@ -343,6 +364,7 @@ class Tetris:
             [" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
         self.lines_cleared = 0
         self.score = 0
+        self.dead: bool = False
 
     def __getitem__(self, pos: tuple) -> str | int:
         return self.board[pos[0]][pos[1]]
@@ -358,7 +380,10 @@ class Tetris:
         for row in range(shape.size):
             for col in range(shape.size):
                 if FILL_CHAR in shape[row, col]:
-                    self[shape.y + row, shape.x+col] = shape[row, col]
+                    if FILL_CHAR  not in self.fixed_board[shape.y + row][shape.x+col]:
+                        self[shape.y + row, shape.x+col] = shape[row, col]
+                    else:
+                        self.dead = True
 
     def can_move_left(self, shape: Tetromino) -> bool:
         if shape.x > shape.get_stop_left():
@@ -473,6 +498,8 @@ class Tetris:
                 if FILL_CHAR in self[row, col]:
                     self.fixed_board[row][col] = self[row, col]
     
+    def check_death(self):
+        pass
 
     def advance_state(self):
         """
@@ -495,7 +522,11 @@ class Tetris:
         """ Iterates through all the shapes and updates the board, and then prints it """
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
-        print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared))
+        if not self.dead:
+            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared))
+        else:
+            print(game_over_display())
+            exit()
 
     def main(self):
         last_main_update = time.time()

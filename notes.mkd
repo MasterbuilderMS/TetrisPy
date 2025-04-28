@@ -7,6 +7,7 @@ TODO:
  [x] #RED Move coordinate system :( :( :( 
  [x] check for line clearing
  [x] increment speed
+ [x] #URGENT Check for death
  [ ] add score
  [ ] add instant drop key
  [ ] add store key
