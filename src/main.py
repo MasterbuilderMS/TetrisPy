@@ -302,7 +302,7 @@ def display(func):
 
 @display
 def game_display(board: list[list], score: int, next_shape: str, lines):
-    top = f"╔════════════════{round(score, 2)}═══════════════════╗\n║                                      ║"
+    top = f"╔══════════════════════════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
 
@@ -321,7 +321,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines):
                     string = tetromino_str[y-6]  # current row of tetromino
                     board_print += f"\t║ {string.ljust(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size))}║"
                 except IndexError:
-                    board_print += f"\t║               ║"
+                    board_print += "\t║               ║"
         elif y == 13:
             board_print += f"{Color.BOLD}\tScore: {score}{Color.END}"
         elif y == 15:
@@ -329,7 +329,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines):
         elif y == 17:
             board_print += f"{Color.BOLD}\tLevel: {lines//10}{Color.END}"
     # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
-    bottom = f"\n║                                      ║\n╚════════════════{round(score, 2)}═══════════════════╝"
+    bottom = f"\n║                                      ║\n╚══════════════════════════════════════╝"
     return TETRIS + "\n" + top + board_print + bottom
 
 
@@ -342,6 +342,7 @@ class Tetris:
         self.fixed_board: list[list[str]] = [
             [" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
         self.lines_cleared = 0
+        self.score = 0
 
     def __getitem__(self, pos: tuple) -> str | int:
         return self.board[pos[0]][pos[1]]
@@ -437,9 +438,12 @@ class Tetris:
 
     def check_rows(self):
         row = BOARD_Y - 1
+        cleared_rows = 0
         while row >= 0:
             if all(FILL_CHAR in self.fixed_board[row][col] for col in range(BOARD_X)):
                 winsound.Beep(1000, 100)
+                cleared_rows += 1
+                self.score += 10*cleared_rows
 
                 # Animate from center outwards
                 mid = BOARD_X // 2
@@ -491,7 +495,7 @@ class Tetris:
         """ Iterates through all the shapes and updates the board, and then prints it """
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
-        print(game_display(self.board, max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10))), self.bag.peek(),self.lines_cleared))
+        print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared))
 
     def main(self):
         last_main_update = time.time()
@@ -509,6 +513,7 @@ class Tetris:
                         self.update_screen()
                 case "DOWN":
                     if self.can_move_down(current_shape):
+                        self.score += 1
                         current_shape.move_down()
                         self.update_screen()
                 case "LEFT":
