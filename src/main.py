@@ -295,13 +295,13 @@ class Tetromino:
 
 def display(func):
     def inner(*args, **kwargs):
-        print("\033[30A\033[2K", end="")
+        print("\033[32A\033[2K", end="")
         return func(*args, **kwargs)
     return inner
 
 
 @display
-def game_display(board: list[list], score: int, next_shape: str):
+def game_display(board: list[list], score: int, next_shape: str, lines):
     top = f"╔════════════════{round(score, 2)}═══════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
@@ -321,9 +321,16 @@ def game_display(board: list[list], score: int, next_shape: str):
                     string = tetromino_str[y-6]  # current row of tetromino
                     board_print += f"\t║ {string.ljust(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size))}║"
                 except IndexError:
-                    board_print += f"\t║ {(" "*(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size)))}║"
+                    board_print += f"\t║               ║"
+        elif y == 13:
+            board_print += f"{Color.BOLD}\tScore: {score}{Color.END}"
+        elif y == 15:
+            board_print += f"{Color.BOLD}\tLines: {lines}{Color.END}"
+        elif y == 17:
+            board_print += f"{Color.BOLD}\tLevel: {lines//10}{Color.END}"
     # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
-    return TETRIS + "\n" + top + board_print
+    bottom = f"\n║                                      ║\n╚════════════════{round(score, 2)}═══════════════════╝"
+    return TETRIS + "\n" + top + board_print + bottom
 
 
 class Tetris:
@@ -461,6 +468,7 @@ class Tetris:
             for col in range(BOARD_X):
                 if FILL_CHAR in self[row, col]:
                     self.fixed_board[row][col] = self[row, col]
+    
 
     def advance_state(self):
         """
@@ -483,7 +491,7 @@ class Tetris:
         """ Iterates through all the shapes and updates the board, and then prints it """
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
-        print(game_display(self.board, max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10))), self.bag.peek()))
+        print(game_display(self.board, max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10))), self.bag.peek(),self.lines_cleared))
 
     def main(self):
         last_main_update = time.time()
