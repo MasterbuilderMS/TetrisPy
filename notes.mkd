@@ -8,6 +8,7 @@ TODO:
  [x] check for line clearing
  [x] increment speed
  [x] #URGENT Check for death
+ [ ] Add more constants for easier customisation
  [ ] add score
  [ ] add instant drop key
  [ ] add store key

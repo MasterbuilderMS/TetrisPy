@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+
 """
 A terminal-based Tetris game implemented in Python.
 
@@ -27,6 +27,7 @@ import os
 import msvcrt
 import winsound
 import copy
+import json
 
 __author__ = "Michael Savage"
 __version__ = "1.0.0"
@@ -306,10 +307,11 @@ def display(func):
         return func(*args, **kwargs)
     return inner
 
+
 @display
 def game_over_display():
     os.system("cls")
-    top = f"╔══════════════════════════════════════╗\n"
+    top = "╔══════════════════════════════════════╗\n"
     for x in range(20):
         if x == 10:
             top += f"║{Color.BOLD}{Color.RED}              GAME OVER               {Color.END}║\n"
@@ -317,12 +319,11 @@ def game_over_display():
             top += "║                                      ║\n"
     top + "\n║                                      ║\n╚══════════════════════════════════════╝"
     return TETRIS + "\n" + top
-    
-    
+  
 
 @display
-def game_display(board: list[list], score: int, next_shape: str, lines):
-    top = f"╔══════════════════════════════════════╗\n║                                      ║"
+def game_display(board: list[list], score: int, next_shape: str, lines, highscore):
+    top = "╔══════════════════════════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
 
@@ -348,10 +349,11 @@ def game_display(board: list[list], score: int, next_shape: str, lines):
             board_print += f"{Color.BOLD}\tLines: {lines}{Color.END}"
         elif y == 17:
             board_print += f"{Color.BOLD}\tLevel: {lines//10}{Color.END}"
+        elif y == 19:
+            board_print += f"{Color.BOLD}\tHighscore: {highscore}{Color.END}"
     # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
-    bottom = f"\n║                                      ║\n╚══════════════════════════════════════╝"
+    bottom = "\n║                                      ║\n╚══════════════════════════════════════╝"
     return TETRIS + "\n" + top + board_print + bottom
-
 
 
 class Tetris:
@@ -365,6 +367,8 @@ class Tetris:
         self.lines_cleared = 0
         self.score = 0
         self.dead: bool = False
+        with open("settings.json") as file:
+            self.highscore = json.load(file)["highscore"]
 
     def __getitem__(self, pos: tuple) -> str | int:
         return self.board[pos[0]][pos[1]]
@@ -380,7 +384,7 @@ class Tetris:
         for row in range(shape.size):
             for col in range(shape.size):
                 if FILL_CHAR in shape[row, col]:
-                    if FILL_CHAR  not in self.fixed_board[shape.y + row][shape.x+col]:
+                    if FILL_CHAR not in self.fixed_board[shape.y + row][shape.x+col]:
                         self[shape.y + row, shape.x+col] = shape[row, col]
                     else:
                         self.dead = True
@@ -441,7 +445,7 @@ class Tetris:
         if free == len(shape.get_rotated()) - num_of_cells_overlapping_with_self:
             return True
         
-    def can_rotate_left(self,shape:Tetromino) -> bool:
+    def can_rotate_left(self, shape: Tetromino) -> bool:
         free = 0
         original_cells = []
         for row in range(shape.size):
@@ -468,7 +472,7 @@ class Tetris:
             if all(FILL_CHAR in self.fixed_board[row][col] for col in range(BOARD_X)):
                 winsound.Beep(1000, 100)
                 cleared_rows += 1
-                self.score += 10*cleared_rows
+                self.score += 20*(2*cleared_rows)
 
                 # Animate from center outwards
                 mid = BOARD_X // 2
@@ -498,9 +502,6 @@ class Tetris:
                 if FILL_CHAR in self[row, col]:
                     self.fixed_board[row][col] = self[row, col]
     
-    def check_death(self):
-        pass
-
     def advance_state(self):
         """
         Advances the state of the board
@@ -523,9 +524,15 @@ class Tetris:
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
         if not self.dead:
-            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared))
+            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.highscore))
         else:
             print(game_over_display())
+            with open("settings.json", "r") as file:
+                data = json.load(file)
+            with open("settings.json", "w") as file:
+                data["highscore"] = self.score
+                json.dump(data, file, indent=4)
+
             exit()
 
     def main(self):
@@ -585,7 +592,7 @@ class Tetris:
                     return "LEFT"
             elif ch == b"q":
                 return "QUIT"
-            elif ch==b"z":
+            elif ch == b"z":
                 return "Z"
 
 
