@@ -28,6 +28,7 @@ import msvcrt
 import winsound
 import copy
 import json
+import re
 
 __author__ = "Michael Savage"
 __version__ = "1.0.0"
@@ -109,6 +110,17 @@ TETRIS = f"""
 {Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}     ███\033[0m
 {Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
 """
+
+
+class Settings:
+    def __init__(self):
+        self.highscore = 0
+
+        with open("src/settings.txt") as file:
+            for line in file.readlines():
+                matched = re.match(r'^\s*(\w+)\s*:\s*(\S+)\s*$', line)
+                if matched:
+                    setattr(self, matched.group(1), matched.group(2))
 
 
 class TetriminoBag:
@@ -317,7 +329,7 @@ def game_over_display():
             top += f"║{Color.BOLD}{Color.RED}              GAME OVER               {Color.END}║\n"
         else:
             top += "║                                      ║\n"
-    top + "\n║                                      ║\n╚══════════════════════════════════════╝"
+    top += "║                                      ║\n╚══════════════════════════════════════╝"
     return TETRIS + "\n" + top
   
 
@@ -367,14 +379,19 @@ class Tetris:
         self.lines_cleared = 0
         self.score = 0
         self.dead: bool = False
-        with open("settings.json") as file:
-            self.highscore = json.load(file)["highscore"]
+        self.settings = Settings()
+        self.highscore = self.settings.highscore
 
     def __getitem__(self, pos: tuple) -> str | int:
         return self.board[pos[0]][pos[1]]
 
     def __setitem__(self, pos: tuple, value: str | int) -> None:
         self.board[pos[0]][pos[1]] = value
+
+    def save_data(self):
+        with open("src/settings.txt", "w")as file:
+            for attr, value in self.settings.__dict__.items():
+                file.write(f"{attr} : {value}")
 
     def update(self, shape: Tetromino):
         """
@@ -527,12 +544,8 @@ class Tetris:
             print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.highscore))
         else:
             print(game_over_display())
-            with open("settings.json", "r") as file:
-                data = json.load(file)
-            with open("settings.json", "w") as file:
-                data["highscore"] = self.score
-                json.dump(data, file, indent=4)
-
+            self.settings.highscore = self.score
+            self.save_data()
             exit()
 
     def main(self):
@@ -590,7 +603,7 @@ class Tetris:
                     return "RIGHT"
                 elif ch2 == b"K":
                     return "LEFT"
-            elif ch == b"q":
+            elif ch == b"q":    
                 return "QUIT"
             elif ch == b"z":
                 return "Z"
@@ -605,3 +618,4 @@ if __name__ == "__main__":
     tetromino = Tetromino(game.bag.next_piece(), 4, 0)
     game.shapes.append(tetromino)
     game.main()
+    
