@@ -27,7 +27,6 @@ import os
 import msvcrt
 import winsound
 import copy
-import json
 import re
 
 __author__ = "Michael Savage"
@@ -331,7 +330,7 @@ def game_over_display():
             top += "║                                      ║\n"
     top += "║                                      ║\n╚══════════════════════════════════════╝"
     return TETRIS + "\n" + top
-  
+
 
 @display
 def game_display(board: list[list], score: int, next_shape: str, lines, highscore):
@@ -458,10 +457,10 @@ class Tetris:
             else:
 
                 free += 1
-        
+
         if free == len(shape.get_rotated()) - num_of_cells_overlapping_with_self:
             return True
-        
+
     def can_rotate_left(self, shape: Tetromino) -> bool:
         free = 0
         original_cells = []
@@ -478,7 +477,7 @@ class Tetris:
             else:
 
                 free += 1
-        
+
         if free == len(shape.get_left_rotated()) - num_of_cells_overlapping_with_self:
             return True
 
@@ -518,7 +517,7 @@ class Tetris:
             for col in range(BOARD_X):
                 if FILL_CHAR in self[row, col]:
                     self.fixed_board[row][col] = self[row, col]
-    
+
     def advance_state(self):
         """
         Advances the state of the board
@@ -618,7 +617,7 @@ class Tetris:
                     return "RIGHT"
                 elif ch2 == b"K":
                     return "LEFT"
-            elif ch == b"q":   
+            elif ch == b"q":
                 return "QUIT"
             elif ch == b"z":
                 return "Z"
@@ -635,4 +634,3 @@ if __name__ == "__main__":
     tetromino = Tetromino(game.bag.next_piece(), 4, 0)
     game.shapes.append(tetromino)
     game.main()
-    
