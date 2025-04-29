@@ -541,10 +541,13 @@ class Tetris:
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
         if not self.dead:
-            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.highscore))
+            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore))
+            if self.score > int(self.settings.highscore):
+                self.settings.highscore = self.score
         else:
             print(game_over_display())
-            self.settings.highscore = self.score
+            if self.score > int(self.settings.highscore):
+                self.settings.highscore = self.score
             self.save_data()
             exit()
 
@@ -553,41 +556,53 @@ class Tetris:
         main_interval = 0.8  # seconds (1 Hz main loop)
         running = True
         current_shape = self.shapes[-1]
-        while running:
-            main_interval = max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10)))
-            # Check for key input as fast as possible
-            current_shape = self.shapes[-1]
-            match self.get_key():
-                case "UP":
-                    if self.can_rotate(current_shape):
-                        current_shape.rotate(90)
-                        self.update_screen()
-                case "DOWN":
-                    if self.can_move_down(current_shape):
-                        self.score += 1
-                        current_shape.move_down()
-                        self.update_screen()
-                case "LEFT":
-                    if self.can_move_left(current_shape):
-                        current_shape.x -= 1
-                        self.update_screen()
-                case "RIGHT":
-                    if self.can_move_right(current_shape):
-                        current_shape.x += 1
-                        self.update_screen()
-                case "Z":
-                    if self.can_rotate_left(current_shape):
-                        current_shape.rotate(270)
-                        self.update_screen()
-                case "QUIT":
-                    running = False
-            # Run main logic at fixed interval
-            now = time.time()
-            if now - last_main_update >= main_interval:
-                self.advance_state()
-                last_main_update = now
+        while True:
+            if running:
+                main_interval = max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10)))
+                # Check for key input as fast as possible
+                current_shape = self.shapes[-1]
+                match self.get_key():
+                    case "UP":
+                        if self.can_rotate(current_shape):
+                            current_shape.rotate(90)
+                            self.update_screen()
+                    case "DOWN":
+                        if self.can_move_down(current_shape):
+                            self.score += 1
+                            current_shape.move_down()
+                            self.update_screen()
+                    case "LEFT":
+                        if self.can_move_left(current_shape):
+                            current_shape.x -= 1
+                            self.update_screen()
+                    case "RIGHT":
+                        if self.can_move_right(current_shape):
+                            current_shape.x += 1
+                            self.update_screen()
+                    case "Z":
+                        if self.can_rotate_left(current_shape):
+                            current_shape.rotate(270)
+                            self.update_screen()
+                    case "QUIT":
+                        exit()
+                    case "PAUSE":
+                        if running:
+                            running = False
+                        else:
+                            running = True
+                # Run main logic at fixed interval
+                now = time.time()
+                if now - last_main_update >= main_interval:
+                    self.advance_state()
+                    last_main_update = now
 
-            time.sleep(0.01)  # Prevent CPU hogging (100 Hz loop)
+                time.sleep(0.01)  # Prevent CPU hogging (100 Hz loop)
+            else:
+                if self.get_key() == "PAUSE":
+                    if running:
+                        running = False
+                    else:
+                        running = True
 
     @staticmethod
     def get_key():
@@ -603,10 +618,12 @@ class Tetris:
                     return "RIGHT"
                 elif ch2 == b"K":
                     return "LEFT"
-            elif ch == b"q":    
+            elif ch == b"q":   
                 return "QUIT"
             elif ch == b"z":
                 return "Z"
+            elif ch == b"p":
+                return "PAUSE"
 
 
 if __name__ == "__main__":
