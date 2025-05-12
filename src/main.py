@@ -1,4 +1,3 @@
-
 """
 A terminal-based Tetris game implemented in Python.
 
@@ -31,7 +30,6 @@ import re
 
 __author__ = "Michael Savage"
 __version__ = "1.0.0"
-
 
 BOARD_X = 10
 BOARD_Y = 20
@@ -112,6 +110,10 @@ TETRIS = f"""
 
 
 class Settings:
+    """
+    Class for controlling the settings of the game and stored variables
+    At the moment, only highscore is implemented, but more can be added
+    """
     def __init__(self):
         self.highscore = 0
 
@@ -333,7 +335,7 @@ def game_over_display():
 
 
 @display
-def game_display(board: list[list], score: int, next_shape: str, lines, highscore):
+def game_display(board: list[list], score: int, next_shape: str, lines, highscore,message):
     top = "╔══════════════════════════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
@@ -354,6 +356,8 @@ def game_display(board: list[list], score: int, next_shape: str, lines, highscor
                     board_print += f"\t║ {string.ljust(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size))}║"
                 except IndexError:
                     board_print += "\t║               ║"
+        elif y == 11:
+            board_print += f"{Color.BOLD}\t{message}                        {Color.END}"
         elif y == 13:
             board_print += f"{Color.BOLD}\tScore: {score}{Color.END}"
         elif y == 15:
@@ -380,6 +384,7 @@ class Tetris:
         self.dead: bool = False
         self.settings = Settings()
         self.highscore = self.settings.highscore
+        self.message = ""
 
     def __getitem__(self, pos: tuple) -> str | int:
         return self.board[pos[0]][pos[1]]
@@ -488,7 +493,17 @@ class Tetris:
             if all(FILL_CHAR in self.fixed_board[row][col] for col in range(BOARD_X)):
                 winsound.Beep(1000, 100)
                 cleared_rows += 1
-                self.score += 20*(2*cleared_rows)
+                self.score += 50*(3*cleared_rows)
+                match cleared_rows:
+                    case 4:
+                        self.message = "Tetris! + 500"
+                        self.score += 500
+                    case 3:
+                        self.message = "Triple!"
+                    case 2:
+                        self.message = "Double!"
+                    case 1:
+                        self.message = "Single!"
 
                 # Animate from center outwards
                 mid = BOARD_X // 2
@@ -526,6 +541,7 @@ class Tetris:
         """
         # check whether to move the current shape down
         current_shape = self.shapes[-1]
+        self.message = ""
         if self.can_move_down(current_shape):
             current_shape.move_down()
         else:
@@ -540,7 +556,7 @@ class Tetris:
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
         if not self.dead:
-            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore))
+            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore, self.message))
             if self.score > int(self.settings.highscore):
                 self.settings.highscore = self.score
         else:
@@ -602,6 +618,8 @@ class Tetris:
                         running = False
                     else:
                         running = True
+                elif self.get_key() == "QUIT":
+                    exit()
 
     @staticmethod
     def get_key():
@@ -634,3 +652,4 @@ if __name__ == "__main__":
     tetromino = Tetromino(game.bag.next_piece(), 4, 0)
     game.shapes.append(tetromino)
     game.main()
+    
