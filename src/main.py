@@ -35,41 +35,14 @@ BOARD_X = 10
 BOARD_Y = 20
 FILL_CHAR = "███"
 
-I_PIECE = [
-    [" ", " ", " ", " "],
-    ["███", "███", "███", "███"],
-    [" ", " ", " ", " "],
-    [" ", " ", " ", " "]
-]
-O_PIECE = [
-    ["███", "███"],
-    ["███", "███"],
-]
-T_PIECE = [
-    [" ", "███", " "],
-    ["███", "███", "███"],
-    [" ", " ", " "]
-]
-S_PIECE = [
-    [" ", "███", "███"],
-    ["███", "███", " "],
-    [" ", " ", " "]
-]
-Z_PIECE = [
-    ["███", "███", " "],
-    [" ", "███", "███"],
-    [" ", " ", " "]
-]
-J_PIECE = [
-    ["███", " ", " "],
-    ["███", "███", "███"],
-    [" ", " ", " "]
-]
-L_PIECE = [
-    [" ", " ", "███"],
-    ["███", "███", "███"],
-    [" ", " ", " "]
-]
+# store coordinates of the shapes relative to the top left corner being (0,0), standard python 2d-array coords
+I_PIECE = [(1, 0), (1, 1), (1, 2), (1, 3)]
+O_PIECE = [(0, 0), (0, 1), (1, 0), (1, 1)]
+T_PIECE = [(1, 0), (0, 1), (1, 1), (1, 2)]
+S_PIECE = [(1, 0), (1, 1), (0, 1), (0, 2)]
+Z_PIECE = [(0, 0), (1, 1), (0, 1), (1, 2)]
+J_PIECE = [(0, 0), (1, 0), (1, 1), (1, 2)]
+L_PIECE = [(1, 0), (1, 1), (1, 2), (0, 2)]
 
 
 class Color:
@@ -100,6 +73,7 @@ class Color:
     ORANGE = "\033[38;5;208m"
 
 
+# tetris logo
 TETRIS = f"""
 {Color.RED}█████████\033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}█████████\033[0m {Color.GREEN}████████ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
 {Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}███     \033[0m
@@ -112,7 +86,7 @@ TETRIS = f"""
 class Settings:
     """
     Class for controlling the settings of the game and stored variables
-    At the moment, only highscore is implemented, but more can be added
+    At the moment,  only highscore is implemented, but more can be added
     """
     def __init__(self):
         self.highscore = 0
@@ -162,40 +136,57 @@ class Tetromino:
     """
 
     def __init__(self, shape: str, start_x_pos: int, start_rotation: int = 0) -> None:
-        # transform shape code into 2d array
-        self.shape = {"I": I_PIECE, "O": O_PIECE, "T": T_PIECE, "S": S_PIECE, "Z": Z_PIECE, "J": J_PIECE, "L": L_PIECE}[shape]
-        if shape not in ["I", "O", "T", "S", "Z", "J", "L"]:
+        self.shape = shape
+        if self.shape not in ["I", "O", "T", "S", "Z", "J", "L"]:
             raise ValueError(f"{self.shape} Not a valid shape")
-        # keep the code
-        self.shape_letter = shape
+        self.cells = {"I": I_PIECE, "O": O_PIECE, "T": T_PIECE, "S": S_PIECE, "Z": Z_PIECE, "J": J_PIECE, "L": L_PIECE}[shape]
         self.x = start_x_pos
         self.y = 0  # top
         self.rotation = start_rotation
-        self.rotate(self.rotation)
+        self.color = self.get_color()
+        self.size = self.get_size()
         # set shape color
-        self.prepare_shape()
+        # self.prepare_shape()
 
     def __str__(self) -> str:
-        return "\n".join("".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for j in self.shape)
-
+        text = ""
+        for x in range(self.size):
+            for y in range(self.size):
+                if (x, y) in self.cells:
+                    text += self.color + FILL_CHAR + Color.END
+                else:
+                    text += "[ ]"
+            text += "\n"
+        return text
+                        
     def __getitem__(self, pos: tuple) -> str | int:
-        try:
-            return self.shape[pos[0]][pos[1]]
-        except IndexError:
-            print(f"Invalid Shape position. Cannot access coordinate {pos[0], pos[1]}. Max is {self.size}")
+        if pos in self.cells:
+            return FILL_CHAR
+        else:
+            return None
 
-    def __setitem__(self, pos: tuple, value: str | int) -> None:
-        try:
-            self.shape[pos[0]][pos[1]] = value
-        except IndexError:
-            print(f"Invalid Shape position. Cannot access coordinate {pos[0], pos[1]}. Max is {self.size}")
+    def get_color(self):
+        return {"I": Color.CYAN, "O": Color.YELLOW, "L": Color.BLUE, "J": Color.ORANGE, "S": Color.GREEN, "Z": Color.RED, "T": Color.PURPLE}[self.shape]
 
-    def rotate(self, degrees: int) -> None:
-        if degrees % 90 != 0:
-            raise ValueError(
-                f"Rotation must be a multiple of 90. Got rotation {degrees}")
-        for _ in range(int(degrees/90)):
-            self.shape = [list(row) for row in zip(*self.shape[::-1])]
+    def get_rotated_clockwise(self) -> list[tuple]:
+        cx, cy = (self.size - 1) / 2, (self.size - 1) / 2
+        return [
+            (round(cx + (y - cy)), round(cy - (x - cx)))
+            for (x, y) in self.cells
+        ]
+    
+    def get_rotated_anticlockwise(self) -> list[tuple]:
+        cx, cy = (self.size - 1) / 2, (self.size - 1) / 2
+        return [
+            (round(cx - (y - cy)), round(cy + (x - cx)))
+            for (x, y) in self.cells
+        ]
+
+    def rotate_clockwise(self) -> None:
+        self.cells = self.get_rotated_clockwise()
+
+    def rotate_anticlockwise(self) -> None:
+        self.cells = self.get_rotated_anticlockwise()
 
     def move_down(self) -> None:
         self.y += 1
@@ -206,10 +197,10 @@ class Tetromino:
     def move_right(self) -> None:
         self.x += 1
 
-    @property
-    def size(self):
+
+    def get_size(self):
         """ Size of the shape (height or width) """
-        return len(self.shape)
+        return {"I": 4, "Z": 3, "S": 3, "T": 3, "L": 3, "J": 3, "O": 2}[self.shape]
 
     def set_color(self, color: str) -> None:
         for row in range(self.size):
@@ -217,72 +208,71 @@ class Tetromino:
                 if self[row, col] == FILL_CHAR:
                     self[row, col] = color + self[row, col] + Color.END
 
-    def prepare_shape(self) -> None:
-        """ Sets the color of the shape to the correct color (matches original tetris)"""
-        color_mappings = {"I": Color.CYAN, "O": Color.YELLOW, "L": Color.BLUE, "J": Color.ORANGE, "S": Color.GREEN, "Z": Color.RED, "T": Color.PURPLE}
-        self.set_color(color_mappings[self.shape_letter])
-
     def get_leftmost(self) -> list[tuple]:
         """
         Return (x, y) positions of all left-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly to the left).
         """
-        leftmost = []
-
-        for row in range(self.size):
-            for col in range(self.size):
-                if FILL_CHAR in self[row, col]:
-                    # Check the tile to the left
-                    if col == 0 or FILL_CHAR not in self[row, col-1]:
-                        leftmost.append((row, col))
-        return leftmost
-
+        leftmost = {}
+        # 0:1 1:1 2:1
+        # (0,1),(1,1),(1,0)(2,1)
+        for row, col in self.cells:
+            if row not in leftmost:
+                leftmost[row] = col
+            try:
+                if col > leftmost[row]:
+                    leftmost[row] = col
+            except IndexError:
+                pass
+        return [(row, col) for row, col in leftmost.items()]
+    
     def get_bottommost(self):
         """
         Return (x, y) positions of all bottom-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly below).
         """
-        bottommost = []
+        bottommost = {}
+        for row, col in self.cells:
+            if col not in bottommost:
+                bottommost[col] = row
+            try:
+                if row > bottommost[col]:
+                    bottommost[col] = row
+            except IndexError:
+                pass
+        return [(row, col) for col, row in bottommost.items()]
 
-        for row in range(self.size):
-            for col in range(self.size):
-                if FILL_CHAR in self[row, col]:
-                    # Check the tile below
-                    if row == self.size-1 or FILL_CHAR not in self[row+1, col]:
-                        bottommost.append((row, col))
-        return bottommost
 
     def get_rightmost(self) -> list[tuple]:
         """
         Return (x, y) positions of all left-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly to the left).
         """
-        rightmost = []
-
-        for row in range(self.size):
-            for col in range(self.size):
-                if FILL_CHAR in self[row, col]:
-                    # Check the tile to the left
-                    if col == self.size-1 or FILL_CHAR not in self[row, col+1]:
-                        rightmost.append((row, col))
-
-        return rightmost
+        rightmost = {}
+        # 0:1 1:1 2:1
+        # (0,1),(1,1),(1,0)(2,1)
+        for row, col in self.cells:
+            if row not in rightmost:
+                rightmost[row] = col
+            try:
+                if col < rightmost[row]:
+                    rightmost[row] = col
+            except IndexError:
+                pass
+        return [(row, col) for row, col in rightmost.items()]
 
     def get_stop_y(self) -> tuple:
         """
         Gets the Y coordinate where the tetromino should stop at the bottom
         since some have empty space at the bottom, this should be added onto the y
         """
-        lowest = self.get_bottommost()
+        lowest = max(self.get_bottommost(), key=lambda x: x[0])[0]
 
-        min_value = BOARD_Y - self.size + (self.size-max(lowest, key=lambda x: x[0])[0] - 1)
-        return min_value
+        return BOARD_Y - lowest
 
     def get_stop_left(self) -> tuple:
         """
         Gets the furthest left the tetromino can be
         before it goes of the edge of the board
         """
-        lowest = self.get_leftmost()
-        min_value = 0 - min(lowest, key=lambda x: x[1])[1]
-        return min_value
+        return 0 - self.get_leftmost()
 
     def get_stop_right(self) -> tuple:
         """
@@ -292,26 +282,6 @@ class Tetromino:
         lowest = self.get_rightmost()
         min_value = BOARD_X-self.size + (self.size-max(lowest, key=lambda x: x[1])[1]) - 1
         return min_value
-
-    def get_rotated(self) -> list[tuple]:
-        rotated = []
-        cells = [list(row) for row in zip(*self.shape[::-1])]
-        for row in range(self.size):
-            for col in range(self.size):
-                if FILL_CHAR in cells[row][col]:
-                    rotated.append((row, col))
-        return rotated
-
-    def get_left_rotated(self) -> list[tuple]:
-        rotated = []
-        cells = [list(row) for row in zip(*self.shape[::-1])]
-        cells = [list(row) for row in zip(*cells[::-1])]
-        cells = [list(row) for row in zip(*cells[::-1])]
-        for row in range(self.size):
-            for col in range(self.size):
-                if FILL_CHAR in cells[row][col]:
-                    rotated.append((row, col))
-        return rotated
 
 
 def display(func):
@@ -335,7 +305,7 @@ def game_over_display():
 
 
 @display
-def game_display(board: list[list], score: int, next_shape: str, lines, highscore,message):
+def game_display(board: list[list], score: int, next_shape: str, lines, highscore, message):
     top = "╔══════════════════════════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
@@ -647,9 +617,12 @@ if __name__ == "__main__":
     os.system("cls")
     winsound.PlaySound("Tetris.wav", winsound.SND_FILENAME |
                        winsound.SND_ASYNC | winsound.SND_LOOP)
-    game = Tetris()
-    shapes = ["I", "O", "J", "L", "T", "Z", "S"]  # possible shapes
-    tetromino = Tetromino(game.bag.next_piece(), 4, 0)
-    game.shapes.append(tetromino)
-    game.main()
-    
+    # game = Tetris()
+    # shapes = ["I", "O", "J", "L", "T", "Z", "S"]  # possible shapes
+    # tetromino = Tetromino(game.bag.next_piece(), 4, 0)
+    # game.shapes.append(tetromino)
+    # game.main()
+    t = Tetromino("I", 4)
+    t.rotate_clockwise()
+    print(t)
+    print(t.get_stop_y())
