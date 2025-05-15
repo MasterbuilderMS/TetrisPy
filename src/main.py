@@ -139,7 +139,7 @@ class Tetromino:
         self.shape = shape
         if self.shape not in ["I", "O", "T", "S", "Z", "J", "L"]:
             raise ValueError(f"{self.shape} Not a valid shape")
-        self.cells = {"I": I_PIECE, "O": O_PIECE, "T": T_PIECE, "S": S_PIECE, "Z": Z_PIECE, "J": J_PIECE, "L": L_PIECE}[shape]
+        self.cells: list[tuple[int, int]] = {"I": I_PIECE, "O": O_PIECE, "T": T_PIECE, "S": S_PIECE, "Z": Z_PIECE, "J": J_PIECE, "L": L_PIECE}[shape]
         self.x = start_x_pos
         self.y = 0  # top
         self.rotation = start_rotation
@@ -159,7 +159,7 @@ class Tetromino:
             text += "\n"
         return text
                         
-    def __getitem__(self, pos: tuple) -> str | int:
+    def __getitem__(self, pos: tuple) -> str | None:
         if pos in self.cells:
             return FILL_CHAR
         else:
@@ -197,7 +197,6 @@ class Tetromino:
     def move_right(self) -> None:
         self.x += 1
 
-
     def get_size(self):
         """ Size of the shape (height or width) """
         return {"I": 4, "Z": 3, "S": 3, "T": 3, "L": 3, "J": 3, "O": 2}[self.shape]
@@ -219,12 +218,12 @@ class Tetromino:
             if row not in leftmost:
                 leftmost[row] = col
             try:
-                if col > leftmost[row]:
+                if col < leftmost[row]:
                     leftmost[row] = col
             except IndexError:
                 pass
         return [(row, col) for row, col in leftmost.items()]
-    
+
     def get_bottommost(self):
         """
         Return (x, y) positions of all bottom-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly below).
@@ -243,7 +242,7 @@ class Tetromino:
 
     def get_rightmost(self) -> list[tuple]:
         """
-        Return (x, y) positions of all left-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly to the left).
+        Return (x, y) positions of all right-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly to the left).
         """
         rightmost = {}
         # 0:1 1:1 2:1
@@ -252,36 +251,34 @@ class Tetromino:
             if row not in rightmost:
                 rightmost[row] = col
             try:
-                if col < rightmost[row]:
+                if col > rightmost[row]:
                     rightmost[row] = col
             except IndexError:
                 pass
         return [(row, col) for row, col in rightmost.items()]
 
-    def get_stop_y(self) -> tuple:
+    def get_stop_y(self) -> int:
         """
         Gets the Y coordinate where the tetromino should stop at the bottom
         since some have empty space at the bottom, this should be added onto the y
         """
         lowest = max(self.get_bottommost(), key=lambda x: x[0])[0]
 
-        return BOARD_Y - lowest
+        return BOARD_Y - lowest - 1
 
-    def get_stop_left(self) -> tuple:
+    def get_stop_left(self) -> int:
         """
         Gets the furthest left the tetromino can be
         before it goes of the edge of the board
         """
-        return 0 - self.get_leftmost()
+        return 0 - min(self.get_leftmost(), key=lambda x: x[1])[1]
 
-    def get_stop_right(self) -> tuple:
+    def get_stop_right(self) -> int:
         """
         Gets the furthest right the tetromino can be
         before it goes of the edge of the board
         """
-        lowest = self.get_rightmost()
-        min_value = BOARD_X-self.size + (self.size-max(lowest, key=lambda x: x[1])[1]) - 1
-        return min_value
+        return BOARD_X-max(self.get_rightmost(), key=lambda x: x[1])[1] - 1
 
 
 def display(func):
@@ -356,7 +353,7 @@ class Tetris:
         self.highscore = self.settings.highscore
         self.message = ""
 
-    def __getitem__(self, pos: tuple) -> str | int:
+    def __getitem__(self, pos: tuple) -> str:
         return self.board[pos[0]][pos[1]]
 
     def __setitem__(self, pos: tuple, value: str | int) -> None:
@@ -372,13 +369,11 @@ class Tetris:
         updates a tetromino on the board at its specifed position
         iterates through the tetromino shape and plonks it on the board accordingly
         """
-        for row in range(shape.size):
-            for col in range(shape.size):
-                if FILL_CHAR in shape[row, col]:
-                    if FILL_CHAR not in self.fixed_board[shape.y + row][shape.x+col]:
-                        self[shape.y + row, shape.x+col] = shape[row, col]
-                    else:
-                        self.dead = True
+        for cell in shape.cells:
+            if FILL_CHAR in self[shape.y+cell[0],shape.x+cell[1]]:
+                self.dead = True
+            else:
+                self[shape.y+cell[0],shape.x+cell[1]] = shape.color + FILL_CHAR + Color.END
 
     def can_move_left(self, shape: Tetromino) -> bool:
         if shape.x > shape.get_stop_left():
@@ -403,6 +398,7 @@ class Tetris:
                     free_spaces += 1
             if free_spaces == len(cells):
                 return True
+        return False
 
     def can_move_down(self, shape: Tetromino) -> bool:
         if shape.y != shape.get_stop_y():  # not at bottom
@@ -415,16 +411,12 @@ class Tetris:
                     free_spaces += 1
             if free_spaces == len(cells):
                 return True
+        return False
 
-    def can_rotate(self, shape: Tetromino) -> bool:
+    def can_rotate_clockwise(self, shape: Tetromino) -> bool:
         free = 0
-        original_cells = []
-        for row in range(shape.size):
-            for col in range(shape.size):
-                if FILL_CHAR in shape[row, col]:
-                    original_cells.append((row, col))
-        num_of_cells_overlapping_with_self = len(set(original_cells) & set(shape.get_rotated()))
-        for i in shape.get_rotated():
+        num_of_cells_overlapping_with_self = len(set(shape.cells) & set(shape.get_rotated_clockwise()))
+        for i in shape.get_rotated_clockwise():
             if shape.x+i[1] < 0 or shape.x+i[1] >= BOARD_X:
                 return False
             if FILL_CHAR in self[shape.y+i[0], shape.x+i[1]]:
@@ -433,18 +425,13 @@ class Tetris:
 
                 free += 1
 
-        if free == len(shape.get_rotated()) - num_of_cells_overlapping_with_self:
+        if free == len(shape.get_rotated_clockwise()) - num_of_cells_overlapping_with_self:
             return True
 
-    def can_rotate_left(self, shape: Tetromino) -> bool:
+    def can_rotate_anticlockwise(self, shape: Tetromino) -> bool:
         free = 0
-        original_cells = []
-        for row in range(shape.size):
-            for col in range(shape.size):
-                if FILL_CHAR in shape[row, col]:
-                    original_cells.append((row, col))
-        num_of_cells_overlapping_with_self = len(set(original_cells) & set(shape.get_left_rotated()))
-        for i in shape.get_left_rotated():
+        num_of_cells_overlapping_with_self = len(set(shape.cells) & set(shape.get_rotated_anticlockwise()))
+        for i in shape.get_rotated_anticlockwise():
             if shape.x+i[1] < 0 or shape.x+i[1] >= BOARD_X:
                 return False
             if FILL_CHAR in self[shape.y+i[0], shape.x+i[1]]:
@@ -453,7 +440,7 @@ class Tetris:
 
                 free += 1
 
-        if free == len(shape.get_left_rotated()) - num_of_cells_overlapping_with_self:
+        if free == len(shape.get_rotated_anticlockwise()) - num_of_cells_overlapping_with_self:
             return True
 
     def check_rows(self):
@@ -548,8 +535,8 @@ class Tetris:
                 current_shape = self.shapes[-1]
                 match self.get_key():
                     case "UP":
-                        if self.can_rotate(current_shape):
-                            current_shape.rotate(90)
+                        if self.can_rotate_clockwise(current_shape):
+                            current_shape.rotate_clockwise()
                             self.update_screen()
                     case "DOWN":
                         if self.can_move_down(current_shape):
@@ -565,8 +552,8 @@ class Tetris:
                             current_shape.x += 1
                             self.update_screen()
                     case "Z":
-                        if self.can_rotate_left(current_shape):
-                            current_shape.rotate(270)
+                        if self.can_rotate_anticlockwise(current_shape):
+                            current_shape.rotate_anticlockwise()
                             self.update_screen()
                     case "QUIT":
                         exit()
@@ -617,12 +604,12 @@ if __name__ == "__main__":
     os.system("cls")
     winsound.PlaySound("Tetris.wav", winsound.SND_FILENAME |
                        winsound.SND_ASYNC | winsound.SND_LOOP)
-    # game = Tetris()
-    # shapes = ["I", "O", "J", "L", "T", "Z", "S"]  # possible shapes
-    # tetromino = Tetromino(game.bag.next_piece(), 4, 0)
-    # game.shapes.append(tetromino)
-    # game.main()
-    t = Tetromino("I", 4)
+    game = Tetris()
+    shapes = ["I", "O", "J", "L", "T", "Z", "S"]  # possible shapes
+    tetromino = Tetromino(game.bag.next_piece(), 4, 0)
+    game.shapes.append(tetromino)
+    game.main()
+    t = Tetromino("J", 4)
     t.rotate_clockwise()
     print(t)
-    print(t.get_stop_y())
+    print(t.get_rightmost())
