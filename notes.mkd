@@ -17,6 +17,6 @@ TODO:
  [ ] add ready,set,go screen
  [ ] show where shape will land
  [ ] modularise
- [ ] better clearing animation
+ [x] better clearing animation
  [ ] messages (tetris, t-spin, single, etc) (sort of done)
  [ ] fix green colour (way too dark)

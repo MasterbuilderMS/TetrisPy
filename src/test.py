@@ -1,5 +1,5 @@
 from functools import cache
-import time,random
+import time
 
 @cache
 def cached_find_factors(num):

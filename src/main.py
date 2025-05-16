@@ -158,8 +158,8 @@ class Tetromino:
                     text += "[ ]"
             text += "\n"
         return text
-                        
-    def __getitem__(self, pos: tuple) -> str | None:
+
+    def __getitem__(self, pos: tuple[int, int]) -> str | None:
         if pos in self.cells:
             return FILL_CHAR
         else:
@@ -168,14 +168,14 @@ class Tetromino:
     def get_color(self):
         return {"I": Color.CYAN, "O": Color.YELLOW, "L": Color.BLUE, "J": Color.ORANGE, "S": Color.GREEN, "Z": Color.RED, "T": Color.PURPLE}[self.shape]
 
-    def get_rotated_clockwise(self) -> list[tuple]:
+    def get_rotated_clockwise(self) -> list[tuple[int, int]]:
         cx, cy = (self.size - 1) / 2, (self.size - 1) / 2
         return [
             (round(cx + (y - cy)), round(cy - (x - cx)))
             for (x, y) in self.cells
         ]
-    
-    def get_rotated_anticlockwise(self) -> list[tuple]:
+
+    def get_rotated_anticlockwise(self) -> list[tuple[int, int]]:
         cx, cy = (self.size - 1) / 2, (self.size - 1) / 2
         return [
             (round(cx - (y - cy)), round(cy + (x - cx)))
@@ -200,12 +200,6 @@ class Tetromino:
     def get_size(self):
         """ Size of the shape (height or width) """
         return {"I": 4, "Z": 3, "S": 3, "T": 3, "L": 3, "J": 3, "O": 2}[self.shape]
-
-    def set_color(self, color: str) -> None:
-        for row in range(self.size):
-            for col in range(self.size):
-                if self[row, col] == FILL_CHAR:
-                    self[row, col] = color + self[row, col] + Color.END
 
     def get_leftmost(self) -> list[tuple]:
         """
@@ -238,7 +232,6 @@ class Tetromino:
             except IndexError:
                 pass
         return [(row, col) for col, row in bottommost.items()]
-
 
     def get_rightmost(self) -> list[tuple]:
         """
@@ -370,10 +363,10 @@ class Tetris:
         iterates through the tetromino shape and plonks it on the board accordingly
         """
         for cell in shape.cells:
-            if FILL_CHAR in self[shape.y+cell[0],shape.x+cell[1]]:
+            if FILL_CHAR in self[shape.y+cell[0], shape.x+cell[1]]:
                 self.dead = True
             else:
-                self[shape.y+cell[0],shape.x+cell[1]] = shape.color + FILL_CHAR + Color.END
+                self[shape.y+cell[0], shape.x+cell[1]] = shape.color + FILL_CHAR + Color.END
 
     def can_move_left(self, shape: Tetromino) -> bool:
         if shape.x > shape.get_stop_left():
@@ -386,6 +379,7 @@ class Tetris:
                     free_spaces += 1
             if free_spaces == len(cells):
                 return True
+        return False
 
     def can_move_right(self, shape: Tetromino) -> bool:
         if shape.x < shape.get_stop_right():
@@ -427,6 +421,7 @@ class Tetris:
 
         if free == len(shape.get_rotated_clockwise()) - num_of_cells_overlapping_with_self:
             return True
+        return False
 
     def can_rotate_anticlockwise(self, shape: Tetromino) -> bool:
         free = 0
@@ -442,6 +437,7 @@ class Tetris:
 
         if free == len(shape.get_rotated_anticlockwise()) - num_of_cells_overlapping_with_self:
             return True
+        return False
 
     def check_rows(self):
         row = BOARD_Y - 1
@@ -577,6 +573,12 @@ class Tetris:
                         running = True
                 elif self.get_key() == "QUIT":
                     exit()
+                elif self.get_key() == "RESTART":
+                    del self
+                    game = Tetris()
+                    tetromino = Tetromino(game.bag.next_piece(), 4, 0)
+                    game.shapes.append(tetromino)
+                    game.main()
 
     @staticmethod
     def get_key():
@@ -598,6 +600,8 @@ class Tetris:
                 return "Z"
             elif ch == b"p":
                 return "PAUSE"
+            elif ch == b"r":
+                return 'RESTART'
 
 
 if __name__ == "__main__":
@@ -609,7 +613,3 @@ if __name__ == "__main__":
     tetromino = Tetromino(game.bag.next_piece(), 4, 0)
     game.shapes.append(tetromino)
     game.main()
-    t = Tetromino("J", 4)
-    t.rotate_clockwise()
-    print(t)
-    print(t.get_rightmost())
