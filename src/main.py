@@ -27,6 +27,8 @@ import msvcrt
 import winsound
 import copy
 import re
+import ctypes
+import time
 
 __author__ = "Michael Savage"
 __version__ = "1.0.0"
@@ -332,6 +334,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines, highscor
 
 
 class Tetris:
+    last_key_times = {}
     def __init__(self):
         self.board: list[list[str]] = [
             [" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
@@ -345,7 +348,6 @@ class Tetris:
         self.settings = Settings()
         self.highscore = self.settings.highscore
         self.message = ""
-
     def __getitem__(self, pos: tuple) -> str:
         return self.board[pos[0]][pos[1]]
 
@@ -529,35 +531,34 @@ class Tetris:
                 main_interval = max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10)))
                 # Check for key input as fast as possible
                 current_shape = self.shapes[-1]
-                match self.get_key():
-                    case "UP":
-                        if self.can_rotate_clockwise(current_shape):
-                            current_shape.rotate_clockwise()
-                            self.update_screen()
-                    case "DOWN":
-                        if self.can_move_down(current_shape):
-                            self.score += 1
-                            current_shape.move_down()
-                            self.update_screen()
-                    case "LEFT":
-                        if self.can_move_left(current_shape):
-                            current_shape.x -= 1
-                            self.update_screen()
-                    case "RIGHT":
-                        if self.can_move_right(current_shape):
-                            current_shape.x += 1
-                            self.update_screen()
-                    case "Z":
-                        if self.can_rotate_anticlockwise(current_shape):
-                            current_shape.rotate_anticlockwise()
-                            self.update_screen()
-                    case "QUIT":
-                        exit()
-                    case "PAUSE":
-                        if running:
-                            running = False
-                        else:
-                            running = True
+                for event in self.get_key():
+                    match event:
+                        case "UP":
+                            if self.can_rotate_clockwise(current_shape):
+                                current_shape.rotate_clockwise()
+                        case "DOWN":
+                            if self.can_move_down(current_shape):
+                                self.score += 1
+                                current_shape.move_down()
+                                now = time.time()
+                                last_main_update = now
+                        case "LEFT":
+                            if self.can_move_left(current_shape):
+                                current_shape.x -= 1
+                        case "RIGHT":
+                            if self.can_move_right(current_shape):
+                                current_shape.x += 1
+                        case "Z":
+                            if self.can_rotate_anticlockwise(current_shape):
+                                current_shape.rotate_anticlockwise()
+                        case "QUIT":
+                            exit()
+                        case "PAUSE":
+                            if running:
+                                running = False
+                            else:
+                                running = True
+                    self.update_screen()
                 # Run main logic at fixed interval
                 now = time.time()
                 if now - last_main_update >= main_interval:
@@ -566,22 +567,43 @@ class Tetris:
 
                 time.sleep(0.01)  # Prevent CPU hogging (100 Hz loop)
             else:
-                if self.get_key() == "PAUSE":
-                    if running:
-                        running = False
-                    else:
-                        running = True
-                elif self.get_key() == "QUIT":
-                    exit()
-                elif self.get_key() == "RESTART":
-                    del self
-                    game = Tetris()
-                    tetromino = Tetromino(game.bag.next_piece(), 4, 0)
-                    game.shapes.append(tetromino)
-                    game.main()
+                for event in self.get_key():
+                    if event == "PAUSE":
+                        if running:
+                            running = False
+                        else:
+                            running = True
+                    elif event == "QUIT":
+                        exit()
+                    elif event == "RESTART":
+                        del self
+                        game = Tetris()
+                        tetromino = Tetromino(game.bag.next_piece(), 4, 0)
+                        game.shapes.append(tetromino)
+                        game.main()
 
     @staticmethod
     def get_key():
+        GetAsyncKeyState = ctypes.windll.user32.GetAsyncKeyState
+        now = time.time()
+        VK = {
+            'UP': 0x26,
+            'DOWN': 0x28,
+            'LEFT': 0x25,
+            'RIGHT': 0x27,
+            'SPACE': 0x20,
+            'RESTART': 0x52,
+            'Z': 0x5A,
+            'QUIT': 0x51,
+            'PAUSE': 0x50
+        }
+        for key, code in VK.items():
+            if GetAsyncKeyState(code) & 0x8000:
+                last = Tetris.last_key_times.get(key, 0)
+                if now - last >= 0.15:
+                    Tetris.last_key_times[key] = now
+                    yield key
+        """
         if msvcrt.kbhit():
             ch = msvcrt.getch()
             if ch == b"\xe0":  # Arrow or function key prefix
@@ -602,7 +624,7 @@ class Tetris:
                 return "PAUSE"
             elif ch == b"r":
                 return 'RESTART'
-
+        """
 
 if __name__ == "__main__":
     os.system("cls")
