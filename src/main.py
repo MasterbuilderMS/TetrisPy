@@ -23,12 +23,10 @@ Todo:
 import time
 import random
 import os
-import msvcrt
 import winsound
 import copy
 import re
 import ctypes
-import time
 
 __author__ = "Michael Savage"
 __version__ = "1.0.0"
@@ -50,7 +48,7 @@ L_PIECE = [(1, 0), (1, 1), (1, 2), (0, 2)]
 class Color:
     """ ANSI color codes """
     RED = "\033[0;31m"
-    GREEN = "\033[38;5;034m"
+    GREEN = "\033[38;5;082m"
     BROWN = "\033[0;33m"
     BLUE = "\033[0;34m"
     PURPLE = "\033[38;5;055m"
@@ -92,6 +90,7 @@ class Settings:
     """
     def __init__(self):
         self.highscore = 0
+        self.starting = 0
 
         with open("src/settings.txt") as file:
             for line in file.readlines():
@@ -311,19 +310,18 @@ def game_display(board: list[list], score: int, next_shape: str, lines, highscor
 
 class Tetris:
     last_key_times = {}
+
     def __init__(self):
-        self.board: list[list[str]] = [
-            [" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
+        self.board: list[list[str]] = [[" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
         self.shapes: list[Tetromino] = []
         self.bag = TetriminoBag()
-        self.fixed_board: list[list[str]] = [
-            [" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
+        self.fixed_board: list[list[str]] = [[" " for _ in range(BOARD_X)] for i in range(BOARD_Y)]
         self.lines_cleared = 0
         self.score = 0
         self.dead: bool = False
         self.settings = Settings()
-        self.highscore = self.settings.highscore
         self.message = ""
+        self.highscore = self.settings.highscore
         self.level = self.settings.starting
 
     def __getitem__(self, pos: tuple) -> str:
@@ -456,7 +454,7 @@ class Tetris:
                 # Do not decrement row so we re-check this row index
             else:
                 row -= 1
-    
+
     def calculate_y(self, tetromino: Tetromino) -> int:
         """
         Calculate how far down the tetromino can fall before it would collide
@@ -556,6 +554,7 @@ class Tetris:
                                 running = True
                         case "SPACE":
                             current_shape.y = self.calculate_y(current_shape)
+                            last_main_update = time.time()-1  # set it lower so that the next tic runs instantly
                     self.update_screen()
                 # Run main logic at fixed interval
                 now = time.time()
