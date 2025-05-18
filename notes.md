@@ -20,4 +20,6 @@ TODO:
  [x] better clearing animation
  [ ] messages (tetris, t-spin, single, etc) (sort of done)
  [ ] fix green colour (way too dark)
- [ ] add better key press system
+ [x] add better key press system
+
+

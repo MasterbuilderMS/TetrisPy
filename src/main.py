@@ -220,21 +220,6 @@ class Tetromino:
                 pass
         return [(row, col) for row, col in leftmost.items()]
 
-    def get_bottommost(self):
-        """
-        Return (x, y) positions of all bottom-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly below).
-        """
-        bottommost = {}
-        for row, col in self.cells:
-            if col not in bottommost:
-                bottommost[col] = row
-            try:
-                if row > bottommost[col]:
-                    bottommost[col] = row
-            except IndexError:
-                pass
-        return [(row, col) for col, row in bottommost.items()]
-
     def get_rightmost(self) -> list[tuple]:
         """
         Return (x, y) positions of all right-edge blocks in the shape (i.e., blocks with no FILL_CHAR directly to the left).
@@ -251,15 +236,6 @@ class Tetromino:
             except IndexError:
                 pass
         return [(row, col) for row, col in rightmost.items()]
-
-    def get_stop_y(self) -> int:
-        """
-        Gets the Y coordinate where the tetromino should stop at the bottom
-        since some have empty space at the bottom, this should be added onto the y
-        """
-        lowest = max(self.get_bottommost(), key=lambda x: x[0])[0]
-
-        return BOARD_Y - lowest - 1
 
     def get_stop_left(self) -> int:
         """
@@ -297,7 +273,7 @@ def game_over_display():
 
 
 @display
-def game_display(board: list[list], score: int, next_shape: str, lines, highscore, message):
+def game_display(board: list[list], score: int, next_shape: str, lines, highscore, message, level):
     top = "╔══════════════════════════════════════╗\n║                                      ║"
     board_print = ""
     tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
@@ -305,7 +281,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines, highscor
     for y, j in enumerate(board):
         board_print += "\n║  " + str(BOARD_Y-y).ljust(4)
         for x in j:
-            board_print += ("["+x + "]" if FILL_CHAR not in x else x)
+            board_print += ("[" + x + "]" if (FILL_CHAR not in x) and (Color.END not in x) else x)
         board_print += "  ║"
         if 5 <= y <= 10:
             if y == 5:
@@ -325,7 +301,7 @@ def game_display(board: list[list], score: int, next_shape: str, lines, highscor
         elif y == 15:
             board_print += f"{Color.BOLD}\tLines: {lines}{Color.END}"
         elif y == 17:
-            board_print += f"{Color.BOLD}\tLevel: {lines//10}{Color.END}"
+            board_print += f"{Color.BOLD}\tLevel: {level}{Color.END}"
         elif y == 19:
             board_print += f"{Color.BOLD}\tHighscore: {highscore}{Color.END}"
     # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
@@ -348,6 +324,8 @@ class Tetris:
         self.settings = Settings()
         self.highscore = self.settings.highscore
         self.message = ""
+        self.level = self.settings.starting
+
     def __getitem__(self, pos: tuple) -> str:
         return self.board[pos[0]][pos[1]]
 
@@ -357,7 +335,7 @@ class Tetris:
     def save_data(self):
         with open("src/settings.txt", "w")as file:
             for attr, value in self.settings.__dict__.items():
-                file.write(f"{attr} : {value}")
+                file.write(f"{attr} : {value}\n")
 
     def update(self, shape: Tetromino):
         """
@@ -369,6 +347,9 @@ class Tetris:
                 self.dead = True
             else:
                 self[shape.y+cell[0], shape.x+cell[1]] = shape.color + FILL_CHAR + Color.END
+        for cell in shape.cells:
+            if FILL_CHAR not in self[self.calculate_y(shape)+cell[0], shape.x+cell[1]]:
+                self[self.calculate_y(shape)+cell[0], shape.x+cell[1]] = shape.color + Color.BOLD + "[ ]" + Color.END
 
     def can_move_left(self, shape: Tetromino) -> bool:
         if shape.x > shape.get_stop_left():
@@ -397,17 +378,10 @@ class Tetris:
         return False
 
     def can_move_down(self, shape: Tetromino) -> bool:
-        if shape.y != shape.get_stop_y():  # not at bottom
-            free_spaces = 0
-            cells = shape.get_bottommost()
-            for cell in cells:
-                if FILL_CHAR in self[shape.y + cell[0]+1, shape.x + cell[1]]:
-                    return False
-                else:
-                    free_spaces += 1
-            if free_spaces == len(cells):
-                return True
-        return False
+        if shape.y < self.calculate_y(shape):
+            return True
+        else:
+            return False
 
     def can_rotate_clockwise(self, shape: Tetromino) -> bool:
         free = 0
@@ -478,9 +452,29 @@ class Tetris:
                 self.fixed_board[0] = [" " for _ in range(BOARD_X)]
 
                 self.lines_cleared += 1
+                self.level = (int(self.settings.starting) + self.lines_cleared//10)
                 # Do not decrement row so we re-check this row index
             else:
                 row -= 1
+    
+    def calculate_y(self, tetromino: Tetromino) -> int:
+        """
+        Calculate how far down the tetromino can fall before it would collide
+        with either the bottom of the board or fixed blocks.
+        Returns the y-coordinate where the piece should land.
+        """
+        # Start from current y
+        start_y = tetromino.y
+
+        while True:
+            # Check if moving the tetromino down one more step would cause a collision
+            for dx, dy in tetromino.cells:
+                new_y = start_y + dx + 1
+                new_x = tetromino.x + dy
+                if new_y >= BOARD_Y or FILL_CHAR in self.fixed_board[new_y][new_x]:
+                    return start_y
+            # No collision, so move down one row
+            start_y += 1
 
     def update_fixed_board(self):
         for row in range(BOARD_Y):
@@ -511,7 +505,7 @@ class Tetris:
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
         if not self.dead:
-            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore, self.message))
+            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore, self.message, self.level))
             if self.score > int(self.settings.highscore):
                 self.settings.highscore = self.score
         else:
@@ -519,6 +513,8 @@ class Tetris:
             if self.score > int(self.settings.highscore):
                 self.settings.highscore = self.score
             self.save_data()
+            time.sleep(1)
+            os.system("cls")
             exit()
 
     def main(self):
@@ -528,7 +524,7 @@ class Tetris:
         current_shape = self.shapes[-1]
         while True:
             if running:
-                main_interval = max(0.1, 0.8 * (0.9 ** (self.lines_cleared//10)))
+                main_interval = 0.8 * (0.9 ** (int(self.level)))
                 # Check for key input as fast as possible
                 current_shape = self.shapes[-1]
                 for event in self.get_key():
@@ -558,6 +554,8 @@ class Tetris:
                                 running = False
                             else:
                                 running = True
+                        case "SPACE":
+                            current_shape.y = self.calculate_y(current_shape)
                     self.update_screen()
                 # Run main logic at fixed interval
                 now = time.time()
@@ -600,31 +598,14 @@ class Tetris:
         for key, code in VK.items():
             if GetAsyncKeyState(code) & 0x8000:
                 last = Tetris.last_key_times.get(key, 0)
+                if key == "DOWN":
+                    if now-last >= 0.8:
+                        Tetris.last_key_times[key] = now
+                        yield key
                 if now - last >= 0.15:
                     Tetris.last_key_times[key] = now
                     yield key
-        """
-        if msvcrt.kbhit():
-            ch = msvcrt.getch()
-            if ch == b"\xe0":  # Arrow or function key prefix
-                ch2 = msvcrt.getch()
-                if ch2 == b"H":
-                    return "UP"
-                elif ch2 == b"P":
-                    return "DOWN"
-                elif ch2 == b"M":
-                    return "RIGHT"
-                elif ch2 == b"K":
-                    return "LEFT"
-            elif ch == b"q":
-                return "QUIT"
-            elif ch == b"z":
-                return "Z"
-            elif ch == b"p":
-                return "PAUSE"
-            elif ch == b"r":
-                return 'RESTART'
-        """
+
 
 if __name__ == "__main__":
     os.system("cls")
