@@ -29,7 +29,7 @@ import re
 import ctypes
 
 __author__ = "Michael Savage"
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 
 BOARD_X = 10
 BOARD_Y = 20
@@ -48,7 +48,7 @@ L_PIECE = [(1, 0), (1, 1), (1, 2), (0, 2)]
 class Color:
     """ ANSI color codes """
     RED = "\033[0;31m"
-    GREEN = "\033[38;5;082m"
+    GREEN = "\033[38;5;046m"
     BROWN = "\033[0;33m"
     BLUE = "\033[0;34m"
     PURPLE = "\033[38;5;055m"
@@ -555,6 +555,8 @@ class Tetris:
                         case "SPACE":
                             current_shape.y = self.calculate_y(current_shape)
                             last_main_update = time.time()-1  # set it lower so that the next tic runs instantly
+                        case "RESET": # resets the screen
+                            os.system("cls")
                     self.update_screen()
                 # Run main logic at fixed interval
                 now = time.time()
@@ -592,7 +594,8 @@ class Tetris:
             'RESTART': 0x52,
             'Z': 0x5A,
             'QUIT': 0x51,
-            'PAUSE': 0x50
+            'PAUSE': 0x50,
+            "RESET": 0x4C
         }
         for key, code in VK.items():
             if GetAsyncKeyState(code) & 0x8000:
