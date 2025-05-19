@@ -10,16 +10,16 @@ TODO:
  [x] #URGENT Check for death
  [ ] Add more constants for easier customisation
  [x] add score
- [ ] add instant drop key
- [ ] add store key
+ [x] add instant drop key
+ [x] add store key
  [x] add highscore
- [ ] better ui
+ [x] better ui
  [ ] add ready,set,go screen
- [ ] show where shape will land
+ [x] show where shape will land
  [ ] modularise
  [x] better clearing animation
  [ ] messages (tetris, t-spin, single, etc) (sort of done)
- [ ] fix green colour (way too dark)
+ [x] fix green colour (way too dark)
  [x] add better key press system
-
+ [ ] fix weird bold bug
 

@@ -1,2 +1,2 @@
-highscore : 9770
+highscore : 9993
 starting : 0

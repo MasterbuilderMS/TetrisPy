@@ -72,8 +72,6 @@ class Color:
     END = "\033[0m"
     ORANGE = "\033[38;5;208m"
 
-
-# tetris logo
 TETRIS = f"""
 {Color.RED}█████████\033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}█████████\033[0m {Color.GREEN}████████ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
 {Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}███     \033[0m
@@ -81,6 +79,12 @@ TETRIS = f"""
 {Color.RED}   ███   \033[0m {Color.ORANGE}███    \033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}  ███   \033[0m {Color.PURPLE}     ███\033[0m
 {Color.RED}   ███   \033[0m {Color.ORANGE}███████\033[0m {Color.YELLOW}   ███   \033[0m {Color.GREEN}███  ███ \033[0m {Color.LIGHT_BLUE}███████ \033[0m {Color.PURPLE}████████\033[0m
 """
+
+ANSI_ESCAPE = re.compile(r"\033\[[0-9;]*m")
+
+
+def visible_length(s: str) -> int:
+    return len(ANSI_ESCAPE.sub("",s))
 
 
 class Settings:
@@ -136,7 +140,7 @@ class Tetromino:
      - rotation
     """
 
-    def __init__(self, shape: str, start_x_pos: int, start_rotation: int = 0) -> None:
+    def __init__(self, shape: str, start_x_pos: int = 4, start_rotation: int = 0) -> None:
         self.shape = shape
         if self.shape not in ["I", "O", "T", "S", "Z", "J", "L"]:
             raise ValueError(f"{self.shape} Not a valid shape")
@@ -158,7 +162,7 @@ class Tetromino:
                 else:
                     text += "[ ]"
             text += "\n"
-        return text
+        return text.strip()
 
     def __getitem__(self, pos: tuple[int, int]) -> str | None:
         if pos in self.cells:
@@ -251,6 +255,248 @@ class Tetromino:
         return BOARD_X-max(self.get_rightmost(), key=lambda x: x[1])[1] - 1
 
 
+class Widget:
+    def __init__(self, text: str):
+        self.text = text.strip("\n").split("\n")  # store lines without \n
+
+    def __iter__(self):
+        return iter(self.text)  # iterator over lines without \n
+
+
+class BorderWidget(Widget):
+    def __init__(
+        self,
+        inner_widget: Widget,
+        padding: int = 0,
+        label: str = "",
+        fixed_width: int = None,
+        fixed_height: int = None
+    ):
+        raw_lines = list(inner_widget)
+        content_width = max(visible_length(line.rstrip()) for line in raw_lines) if raw_lines else 0
+        content_height = len(raw_lines)
+
+        pad = " " * padding
+        inner_width = max(content_width, 0)
+        padded_width = inner_width + 2 * padding
+
+        # Enforce fixed width
+        if fixed_width is not None:
+            content_width = fixed_width - 2 * padding
+            padded_width = fixed_width
+
+        # ───── Top border ─────
+        if label:
+            label_stripped = ANSI_ESCAPE.sub('', label)
+            label_len = len(label_stripped)
+            extra = padded_width - label_len - 2  # -2 for spaces around label
+            left = max(0, extra // 2)
+            right = max(0, extra - left)
+            top_border = "╔" + "═" * left + f" {label} " + "═" * right + "╗"
+        else:
+            top_border = "╔" + "═" * padded_width + "╗"
+
+        # ───── Pad vertically ─────
+        visible_lines = []
+        for raw_line in raw_lines:
+            stripped = raw_line.rstrip()
+            line_pad = content_width - visible_length(stripped)
+            padded_line = pad + stripped + " " * max(0, line_pad) + pad
+            visible_lines.append("║" + padded_line + "║")
+
+        # Vertical padding: 1 empty line above and below content
+        top_pad = ["║" + " " * padded_width + "║"]
+        bottom_pad = ["║" + " " * padded_width + "║"]
+
+        # Enforce fixed height
+        total_inner_height = len(top_pad) + len(visible_lines) + len(bottom_pad)
+        if fixed_height is not None:
+            extra_lines = fixed_height - len(visible_lines)
+            top_extra = extra_lines // 2
+            bottom_extra = extra_lines - top_extra
+            top_pad = ["║" + " " * padded_width + "║"] * max(0, top_extra)
+            bottom_pad = ["║" + " " * padded_width + "║"] * max(0, bottom_extra)
+
+        # ───── Build final ─────
+        bordered_lines = [top_border]
+        bordered_lines += top_pad + visible_lines + bottom_pad
+        bordered_lines.append("╚" + "═" * padded_width + "╝")
+
+        super().__init__("\n".join(bordered_lines))
+
+
+class LogoWidget(Widget):
+    def __init__(self):
+        text = TETRIS
+        super().__init__(text)
+
+
+class GameBoardWidget(Widget):
+    def __init__(self, board):
+        text = ""
+        for y, line in enumerate(board):
+            text += str(BOARD_Y-y).ljust(4)
+            for element in line:
+                text += ("[" + element + "]" if (FILL_CHAR not in element) and (Color.END not in element) else element)
+            text += "\n"
+        super().__init__(text)
+
+
+class HorizontalLayout(Widget):
+    def __init__(self, widgets: list[Widget], spacing: int = 2):
+        # Convert each widget to a list of lines
+        rendered = [list(w) for w in widgets]
+
+        # Compute the max visible height
+        max_height = max(len(r) for r in rendered)
+
+        # ANSI-aware width computation and padding
+        padded_rendered = []
+        for lines in rendered:
+            width = max(visible_length(line) for line in lines) if lines else 0
+            pad_line = " " * width
+            padded_lines = lines + [pad_line] * (max_height - len(lines))
+            padded_rendered.append(padded_lines)
+
+        # Combine lines horizontally
+        lines = []
+        for i in range(max_height):
+            line_parts = []
+            for widget_lines in padded_rendered:
+                line_parts.append(widget_lines[i])
+            lines.append((" " * spacing).join(line_parts))
+
+        super().__init__("\n".join(lines))
+
+
+class VerticalLayout(Widget):
+    def __init__(self, widgets: list[Widget]):
+        lines = []
+        for widget in widgets:
+            lines.extend(list(widget))
+        super().__init__("\n".join(lines))
+
+
+class ShapeWidget(Widget):
+    def __init__(self, next: Tetromino):
+        text = ""
+        text = str(next)
+        super().__init__(text)
+
+
+class InfoWidget(Widget):
+    def __init__(self, score, lines, highscore, message, level):
+        text = f"{message}\n"
+        text += f"{Color.BOLD} Score: {score}{Color.END}\n"
+        text += f"{Color.BOLD} Highscore: {highscore}{Color.END}\n"
+        text += f"{Color.BOLD} lines: {lines}{Color.END}\n"
+        text += f"{Color.BOLD} level: {level}{Color.END}\n"
+        super().__init__(text)
+
+
+class TextWidget(Widget):
+    def __init__(self, text: str):
+        text = text
+        super().__init__(text)
+
+
+class Display:
+    def __init__(self):
+        self.last_key_times = {}
+
+    def get_key(self):
+        GetAsyncKeyState = ctypes.windll.user32.GetAsyncKeyState
+        now = time.time()
+        VK = {
+            'UP': 0x26,
+            'DOWN': 0x28,
+            'LEFT': 0x25,
+            'RIGHT': 0x27,
+            'SPACE': 0x20,
+            'RESTART': 0x52,
+            'Z': 0x5A,
+            'QUIT': 0x51,
+            'PAUSE': 0x50,
+            "RESET": 0x4C,
+            "HOLD": 0x43
+        }
+        for key, code in VK.items():
+            if GetAsyncKeyState(code) & 0x8000:
+                last = self.last_key_times.get(key, 0)
+                if key == "DOWN":
+                    if now-last >= 0.1:
+                        self.last_key_times[key] = now
+                        yield key
+                elif key == "SPACE":
+                    if now-last >= 0.8:
+                        self.last_key_times[key] = now
+                        yield key
+                elif now - last >= 0.15:
+                    self.last_key_times[key] = now
+                    yield key
+
+
+class GameDisplay(Display):
+    def __init__(self, board, score, next_shape, hold_shape, lines, highscore, message, level):
+        self.board = board
+        self.score = score
+        self.next_shape = next_shape
+        self.hold_shape = hold_shape
+        self.lines = lines
+        self.highscore = highscore
+        self.message = message
+        self.level = level
+        super().__init__()
+    
+    def __str__(self):
+        """The basic board display"""
+        print("\033[32A\033[2K", end="")  # clear the screen by moving pointer up to top left
+        board_print = ""
+        left = BorderWidget(GameBoardWidget(self.board), padding=2)
+        right_top = BorderWidget(ShapeWidget(self.next_shape), label="next", padding=4, fixed_height=6, fixed_width=20)
+        right_middle = BorderWidget(ShapeWidget(self.hold_shape), label="hold", padding=4, fixed_height=6, fixed_width=20)
+        right_bottom = BorderWidget(InfoWidget(self.score, self.lines, self.highscore, self.message, self.level))
+        right_column = VerticalLayout([right_top, right_middle, right_bottom])
+        screen = VerticalLayout([LogoWidget(), HorizontalLayout([left, right_column], spacing=5)])
+        for line in screen:
+            board_print += line + "\n"
+        return board_print
+
+    def get_events(self):
+        return self.get_key()
+
+
+class EndDisplay:
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        os.system("cls")
+        print("\033[32A\033[2K", end="")
+        board_print = ""
+        for line in VerticalLayout([LogoWidget(), BorderWidget(TextWidget("             Game Over"), padding=2, fixed_height=22, fixed_width=40)]):
+            board_print += line + "\n"
+        return board_print
+
+
+class StartDisplay:
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        print("\033[32A\033[2K", end="")
+        text = ""
+        return text
+
+
+
+
+
+class Event:
+    def __init__(self, event, type):
+        self.event = event
+        self.type
+
 def display(func):
     def inner(*args, **kwargs):
         print("\033[32A\033[2K", end="")
@@ -271,43 +517,6 @@ def game_over_display():
     return TETRIS + "\n" + top
 
 
-@display
-def game_display(board: list[list], score: int, next_shape: str, lines, highscore, message, level):
-    top = "╔══════════════════════════════════════╗\n║                                      ║"
-    board_print = ""
-    tetromino_str = str(Tetromino(next_shape, 0, 0)).split("\n")
-
-    for y, j in enumerate(board):
-        board_print += "\n║  " + str(BOARD_Y-y).ljust(4)
-        for x in j:
-            board_print += ("[" + x + "]" if (FILL_CHAR not in x) and (Color.END not in x) else x)
-        board_print += "  ║"
-        if 5 <= y <= 10:
-            if y == 5:
-                board_print += "\t╔═════Next══════╗"
-            elif y == 10:
-                board_print += "\t╚═══════════════╝"
-            else:
-                try:
-                    string = tetromino_str[y-6]  # current row of tetromino
-                    board_print += f"\t║ {string.ljust(len(string) + 2 + (12 - 3*Tetromino(next_shape, 0, 0).size))}║"
-                except IndexError:
-                    board_print += "\t║               ║"
-        elif y == 11:
-            board_print += f"{Color.BOLD}\t{message}                        {Color.END}"
-        elif y == 13:
-            board_print += f"{Color.BOLD}\tScore: {score}{Color.END}"
-        elif y == 15:
-            board_print += f"{Color.BOLD}\tLines: {lines}{Color.END}"
-        elif y == 17:
-            board_print += f"{Color.BOLD}\tLevel: {level}{Color.END}"
-        elif y == 19:
-            board_print += f"{Color.BOLD}\tHighscore: {highscore}{Color.END}"
-    # board = "\n".join("║\t" + str(BOARD_Y-y).ljust(4)+"".join(("["+i + "]" if FILL_CHAR not in i else i) for i in j) for y, j in enumerate(self.board))
-    bottom = "\n║                                      ║\n╚══════════════════════════════════════╝"
-    return TETRIS + "\n" + top + board_print + bottom
-
-
 class Tetris:
     last_key_times = {}
 
@@ -323,12 +532,18 @@ class Tetris:
         self.message = ""
         self.highscore = self.settings.highscore
         self.level = self.settings.starting
+        self.hold: Tetromino | None = None
+        self.swapped_held = False # whether the player has swapped the held shape. This is so you can't swap and then unswap
 
     def __getitem__(self, pos: tuple) -> str:
         return self.board[pos[0]][pos[1]]
 
     def __setitem__(self, pos: tuple, value: str | int) -> None:
         self.board[pos[0]][pos[1]] = value
+
+    @property
+    def display(self):
+        pass
 
     def save_data(self):
         with open("src/settings.txt", "w")as file:
@@ -496,6 +711,7 @@ class Tetris:
             self.shapes.append(tetromino)
             self.update_fixed_board()
             self.check_rows()
+            self.swapped_held = False
         self.update_screen()
 
     def update_screen(self):
@@ -503,11 +719,18 @@ class Tetris:
         self.board = copy.deepcopy(self.fixed_board)
         self.update(self.shapes[-1])
         if not self.dead:
-            print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore, self.message, self.level))
+            print(GameDisplay(self.board, 
+                              self.score,
+                              Tetromino(self.bag.peek(), 4), 
+                              self.hold, 
+                              self.lines_cleared, 
+                              self.settings.highscore, 
+                              self.message, self.level))
+            #print(game_display(self.board, self.score, self.bag.peek(), self.lines_cleared, self.settings.highscore, self.message, self.level))
             if self.score > int(self.settings.highscore):
                 self.settings.highscore = self.score
         else:
-            print(game_over_display())
+            print(EndDisplay())
             if self.score > int(self.settings.highscore):
                 self.settings.highscore = self.score
             self.save_data()
@@ -553,10 +776,24 @@ class Tetris:
                             else:
                                 running = True
                         case "SPACE":
-                            current_shape.y = self.calculate_y(current_shape)
+                            fall_dist = self.calculate_y(current_shape)
+                            self.score += fall_dist-current_shape.y
+                            current_shape.y = fall_dist
                             last_main_update = time.time()-1  # set it lower so that the next tic runs instantly
-                        case "RESET": # resets the screen
+                        case "RESET":  # resets the screen
                             os.system("cls")
+                        case "HOLD":
+                            if not self.swapped_held:
+                                self.swapped_held = True
+                                if self.hold is None:
+                                    self.hold = Tetromino(current_shape.shape)
+                                    tetromino = Tetromino(self.bag.next_piece(), 4, 0)
+                                    self.shapes.append(tetromino) 
+                                else:
+                                    temp = Tetromino(self.hold.shape)
+                                    self.hold = Tetromino(current_shape.shape)
+                                    self.shapes[-1] = temp
+          
                     self.update_screen()
                 # Run main logic at fixed interval
                 now = time.time()
@@ -595,16 +832,21 @@ class Tetris:
             'Z': 0x5A,
             'QUIT': 0x51,
             'PAUSE': 0x50,
-            "RESET": 0x4C
+            "RESET": 0x4C,
+            "HOLD": 0x43
         }
         for key, code in VK.items():
             if GetAsyncKeyState(code) & 0x8000:
                 last = Tetris.last_key_times.get(key, 0)
                 if key == "DOWN":
+                    if now-last >= 0.1:
+                        Tetris.last_key_times[key] = now
+                        yield key
+                elif key == "SPACE":
                     if now-last >= 0.8:
                         Tetris.last_key_times[key] = now
                         yield key
-                if now - last >= 0.15:
+                elif now - last >= 0.15:
                     Tetris.last_key_times[key] = now
                     yield key
 
