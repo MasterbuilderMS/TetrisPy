@@ -1,2 +1,2 @@
-highscore : 9993
+highscore : 17301
 starting : 0

@@ -386,7 +386,7 @@ class ShapeWidget(Widget):
 
 class InfoWidget(Widget):
     def __init__(self, score, lines, highscore, message, level):
-        text = f"{message}\n"
+        text = f" {message if message != "" else "\n"}\n"
         text += f"{Color.BOLD} Score: {score}{Color.END}\n"
         text += f"{Color.BOLD} Highscore: {highscore}{Color.END}\n"
         text += f"{Color.BOLD} lines: {lines}{Color.END}\n"
@@ -455,7 +455,7 @@ class GameDisplay(Display):
         left = BorderWidget(GameBoardWidget(self.board), padding=2)
         right_top = BorderWidget(ShapeWidget(self.next_shape), label="next", padding=4, fixed_height=6, fixed_width=20)
         right_middle = BorderWidget(ShapeWidget(self.hold_shape), label="hold", padding=4, fixed_height=6, fixed_width=20)
-        right_bottom = BorderWidget(InfoWidget(self.score, self.lines, self.highscore, self.message, self.level))
+        right_bottom = BorderWidget(InfoWidget(self.score, self.lines, self.highscore, self.message, self.level),fixed_height=7)
         right_column = VerticalLayout([right_top, right_middle, right_bottom])
         screen = VerticalLayout([LogoWidget(), HorizontalLayout([left, right_column], spacing=5)])
         for line in screen:
@@ -487,34 +487,6 @@ class StartDisplay:
         print("\033[32A\033[2K", end="")
         text = ""
         return text
-
-
-
-
-
-class Event:
-    def __init__(self, event, type):
-        self.event = event
-        self.type
-
-def display(func):
-    def inner(*args, **kwargs):
-        print("\033[32A\033[2K", end="")
-        return func(*args, **kwargs)
-    return inner
-
-
-@display
-def game_over_display():
-    os.system("cls")
-    top = "╔══════════════════════════════════════╗\n"
-    for x in range(20):
-        if x == 10:
-            top += f"║{Color.BOLD}{Color.RED}              GAME OVER               {Color.END}║\n"
-        else:
-            top += "║                                      ║\n"
-    top += "║                                      ║\n╚══════════════════════════════════════╝"
-    return TETRIS + "\n" + top
 
 
 class Tetris:

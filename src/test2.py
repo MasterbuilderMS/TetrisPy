@@ -1,14 +1,10 @@
-import ctypes
-import time
+flowers = ["Rose", "Lavender"]
+subsets = []
+for i in range(len(flowers)**2):
+    subsets.append([])
+    binary = bin(i+1)[1:]
+    for digit in binary:
+        if digit == "1":
+            subsets[-1].append(flowers[i])
 
-GetAsyncKeyState = ctypes.windll.user32.GetAsyncKeyState
-
-VK_LEFT = 0x25
-VK_DOWN = 0x28
-
-while True:
-    left = GetAsyncKeyState(VK_LEFT)
-    down = GetAsyncKeyState(VK_DOWN)
-    if left & 0x8000 and down & 0x8000:
-        print("Left + Down")
-    time.sleep(0.05)
+print(subsets)
